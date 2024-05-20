@@ -41,10 +41,9 @@ void readFile(FILE *toRead) {
 			str_pos = str+str_size;
 			*str_pos = fgetc(toRead);
 		} else {
-			str = realloc(str, BUFFER_SIZE * buffer_mult);
-			printf("%s\n", str);
+			buffer_mult++;
+			str = (char*)realloc(str, BUFFER_SIZE * buffer_mult);
 			i = 0;
-			//buffer_mult++;
 			str_pos = str+str_size;
 			*str_pos = fgetc(toRead);
 		}
