@@ -63,9 +63,15 @@ char* formatHead(int numCol) {
 	return output;
 }
 
-char* formatFirstVal(char* chr) {
-	char* output = allocate(sizeof(char)*12);
+char* formatFirstValZero(char* chr) {
+	char* output = allocate(sizeof(char)*13);
 	sprintf(output, "|%.8X|%.2X ", 0, *chr);
+	return output;
+}
+
+char* formatFirstVal(char* chr) {
+	char* output = allocate(sizeof(char)*3);
+	sprintf(output, "%.2X ", *chr);
 	return output;
 }
 
@@ -89,6 +95,10 @@ char* formatFinalVal(char* chr) {
 
 void printColHead(int numCol) {
 	printf("%s", formatHead(numCol));
+}
+
+void printFirstValZero(char* chr) {
+	printf("%s", formatFirstValZero(chr));
 }
 
 void printFirstVal(char* chr) {
@@ -146,13 +156,30 @@ FILE* openFileRB(char* fileName) {
 		}
 }
 
-FILE* openFileWB(char* fileName) {
+FILE* openFileW(char* fileName) {
 	FILE* fileReturn;
 	fflush(stdout);
 	fileReturn = fopen(fileName, "w");
 	if(fileReturn == NULL) {
 			perror("ERROR, FOPEN: ");
+			exit(0);
+		} else {
 			return fileReturn;
+		}
+}
+
+/*
+* opens a file stream for an empty file, which can the be appended
+* (this makes it easier to write files over ~2KB with formatted strings,
+*  as writing a very large string around that size to file will fail)
+*/
+FILE* openFileEmptyW(char* fileName) {
+	FILE* fileReturn;
+	fileReturn = openFileW(fileName);
+	fileReturn = freopen(fileName, "a", fileReturn);
+	if(fileReturn == NULL) {
+			perror("ERROR, FREOPEN: ");
+			exit(0);
 		} else {
 			return fileReturn;
 		}
@@ -203,13 +230,68 @@ bool fileExists(char* filename) {
 	fclose(test);
 }
 
-void writeFile(char* toWrite, char* data, unsigned long length, int col) {
+void writeSmallFile(char* toWrite, char* data, unsigned long length, int col) {
 	FILE* output;
-	output = openFileWB(toWrite);
+	output = openFileW(toWrite);
 	if(output) {
 		fprintf(output, "%s", formatHexTable(data, length, col));
 	}
 	fclose(output);
+}
+
+char* formatTableChunk(char* data, int length, int numCol, unsigned long rowOffset) {
+	unsigned long i = 0;
+	unsigned char* str = allocate(sizeOfTable(numCol, length)); //may not have enough mem after loading large file?
+	unsigned char* str_pos = str;
+	unsigned char* data_pos = data;
+	while(i < length) {
+		printf("here3\n fileBuff: %d; *fileBuff: %d\nstr: %d; *str: %d\n str_pos: %d; *str_pos: %d\n data_pos: %d; *data_pos: %d\n", fileBuff, *fileBuff, str, *str, str_pos, *str_pos, data_pos, *data_pos);
+		data_pos = data + i*sizeof(char);
+		i++;
+		printf("here4\n");
+		if(!(i%numCol)) {
+			sprintf(str_pos, "%s", formatEndVal(data_pos, (rowOffset + i)));
+			str_pos = str_pos + 13*sizeof(char);
+		} else if(i==1 && i+rowOffset==1) {
+			sprintf(str_pos, "%s", formatFirstValZero(data_pos));
+			str_pos = str_pos + 13*sizeof(char);
+		} else if(i==1) {
+			sprintf(str_pos, "%s", formatFirstVal(data_pos));
+			str_pos = str_pos + 3*sizeof(char);
+		} else if(i == length) {
+			sprintf(str_pos, "%s", formatFinalVal(data_pos));
+			str_pos = str_pos + 3*sizeof(char);
+		} else {
+			sprintf(str_pos, "%s", formatInnerVal(data_pos));
+			str_pos = str_pos + 3*sizeof(char);
+		}
+	}
+	return str;
+}
+
+void writeFile(char* toWrite, char* data, unsigned long length, int col) {
+	FILE* output;
+	output = openFileEmptyW(toWrite);
+	unsigned long buffSize = 128;
+	unsigned long rowOffset = 0;
+	char* buffPos = data;
+	unsigned long writeCount = length;
+	int e =0;
+	if(output) {
+		fprintf(output, "%s", formatHead(col));
+		while(writeCount > buffSize) {
+			e++;
+			printf("e: %d\nbuffSize: %d\nwriteCount: %d\n", e, buffSize, writeCount);
+			writeCount -= buffSize;
+			printf("here1\n");
+			fprintf(output, "%s", formatTableChunk(buffPos, buffSize, col, rowOffset));
+			printf("here2\n");
+			buffPos += buffSize;
+			rowOffset += buffSize;
+		}
+		fprintf(output, "%s", formatTableChunk(buffPos, writeCount, col, rowOffset));
+		fclose(output);
+	}
 }
 
 /*
@@ -247,7 +329,7 @@ char* saveQuestion() {
 			sprintf(q, "File '%s' already exits, would you like to overwrite?", answer);
 			fflush(stdin);
 			if(askQuestion(q)) {
-				openFileWB(answer);
+				openFileW(answer);
 				printf("overwrite\n");
 				writeFile(answer, fileBuff, fileLen, columns);
 				free(q);
