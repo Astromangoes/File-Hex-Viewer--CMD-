@@ -12,14 +12,14 @@ char* allocated_pos;
 unsigned long numAllocated;
 
 char* allocate(unsigned long memSize) {
-	char* output = malloc(memSize);
+	char* output = (char*)malloc(memSize);
 	allocated = output;
 	allocated_pos += sizeof(char*);
 	return output;
 }
 
 char* reallocate(char* ptr, unsigned long memSize) {
-	char* output = realloc(ptr, memSize);
+	char* output = (char*) realloc(ptr, memSize);
 	return output;
 }
 
@@ -51,7 +51,7 @@ unsigned long sizeOfTable(unsigned long col, unsigned long length) {
 }
 
 char* formatHead(int numCol) {
-	char* output = allocate(sizeOfHead(numCol));
+	char* output = allocate(sizeOfHead(numCol)+1);
 	char* out_pos;
 	out_pos = output + 10*sizeof(char);
 	sprintf(output, "| OFFSET |");
@@ -64,62 +64,74 @@ char* formatHead(int numCol) {
 }
 
 char* formatFirstValZero(char* chr) {
-	char* output = allocate(sizeof(char)*13);
-	sprintf(output, "|%.8X|%.2X ", 0, *chr);
+	char* output = allocate((sizeof(char)*13)+1);
+	sprintf(output, "|%.8X|%.2X ", 0, (unsigned char)*chr);
 	return output;
 }
 
 char* formatFirstVal(char* chr) {
-	char* output = allocate(sizeof(char)*3);
-	sprintf(output, "%.2X ", *chr);
+	char* output = allocate((sizeof(char)*3)+1);
+	sprintf(output, "%.2X ", (unsigned char)*chr);
 	return output;
 }
 
 char* formatInnerVal(char* chr) {
-	char* output = allocate(sizeof(char)*3);
-	sprintf(output, "%.2X ", *chr);
+	char* output = allocate((sizeof(char)*3)+1);
+	sprintf(output, "%.2X ", (unsigned char)*chr);
 	return output;
 }
 
 char* formatEndVal(char* chr, unsigned long rowVal) {
-	char* output = allocate(sizeof(char)*13);
-	sprintf(output, "%.2X\n|%.8X|", *chr, rowVal);
+	char* output = allocate((sizeof(char)*13)+1);
+	sprintf(output, "%.2X\n|%.8X|", (unsigned char)*chr, rowVal);
 	return output;
 }
 
 char* formatFinalVal(char* chr) {
-	char* output = allocate(sizeof(char)*3);
-	sprintf(output, "%.2X\n", *chr);
+	char* output = allocate((sizeof(char)*3)+1);
+	sprintf(output, "%.2X\n", (unsigned char)*chr);
 	return output;
 }
 
 void printColHead(int numCol) {
-	printf("%s", formatHead(numCol));
+	char* printStr = formatHead(numCol);
+	printf("%s", printStr);
+	free(printStr);
 }
 
 void printFirstValZero(char* chr) {
-	printf("%s", formatFirstValZero(chr));
+	char* printStr = formatFirstValZero(chr);
+	printf("%s", printStr);
+	free(printStr);
 }
 
 void printFirstVal(char* chr) {
-	printf("%s", formatFirstVal(chr));
+	char* printStr = formatFirstVal(chr);
+	printf("%s", printStr);
+	free(printStr);
 }
 
 void printInnerVal(char* chr) {
-	printf("%s", formatInnerVal(chr));
+	char* printStr = formatInnerVal(chr);
+	printf("%s", printStr);
+	free(printStr);
 }
 
 void printEndVal(char* chr, unsigned long rowVal) {
-	printf("%s", formatEndVal(chr, rowVal));
+	char* printStr = formatEndVal(chr, rowVal);
+	printf("%s", printStr);
+	free(printStr);
 }
 
 void printFinalVal(char* chr) {
-	printf("%s", formatFinalVal(chr));
+	char* printStr = formatFinalVal(chr);
+	printf("%s", printStr);
+	free(printStr);
 }
 
 char* formatHexTable(unsigned char* data, unsigned long length, int numCol) {
 	unsigned long i = 0;
-	unsigned char* output = allocate(sizeOfTable(numCol, length));
+	unsigned char* output = allocate(sizeOfTable(numCol, length)+1);
 	unsigned char* str_pos = output;
 	unsigned char* data_pos = data;
 	char* str = formatHead(numCol);
@@ -213,7 +225,6 @@ void readFile(char* toRead) {
 		}
 		fileBuff = (char*)realloc(str, BUFFER_SIZE * buffer_mult);
 		fileLen = str_size/sizeof(char);
-		//free(str); // this frees the same memory as fileBuff, because pointers so remember to free up fileBuff
 		fclose(doc);
 	}
 }
@@ -241,29 +252,42 @@ void writeSmallFile(char* toWrite, char* data, unsigned long length, int col) {
 
 char* formatTableChunk(char* data, int length, int numCol, unsigned long rowOffset) {
 	unsigned long i = 0;
-	unsigned char* str = allocate(sizeOfTable(numCol, length)); //may not have enough mem after loading large file?
-	unsigned char* str_pos = str;
-	unsigned char* data_pos = data;
+	char* str = allocate(sizeOfTable(numCol, length)+1); //may not have enough mem after loading large file?
+	if(str==NULL) {
+		printf("string alloc fail\n");
+		exit(0);
+	}
+	char* str_pos = str; 
+	char* data_pos;// = data;
+	char* valStr;
 	while(i < length) {
-		printf("here3\n fileBuff: %d; *fileBuff: %d\nstr: %d; *str: %d\n str_pos: %d; *str_pos: %d\n data_pos: %d; *data_pos: %d\n", fileBuff, *fileBuff, str, *str, str_pos, *str_pos, data_pos, *data_pos);
 		data_pos = data + i*sizeof(char);
 		i++;
-		printf("here4\n");
 		if(!(i%numCol)) {
-			sprintf(str_pos, "%s", formatEndVal(data_pos, (rowOffset + i)));
+			valStr = formatEndVal(data_pos, (rowOffset + i));
+			sprintf(str_pos, "%s", valStr);
 			str_pos = str_pos + 13*sizeof(char);
+			free(valStr);
 		} else if(i==1 && i+rowOffset==1) {
-			sprintf(str_pos, "%s", formatFirstValZero(data_pos));
+			valStr = formatFirstValZero(data_pos);
+			sprintf(str_pos, "%s", valStr);
 			str_pos = str_pos + 13*sizeof(char);
+			free(valStr);
 		} else if(i==1) {
-			sprintf(str_pos, "%s", formatFirstVal(data_pos));
+			valStr = formatFirstVal(data_pos);
+			sprintf(str_pos, "%s", valStr);
 			str_pos = str_pos + 3*sizeof(char);
+			free(valStr);
 		} else if(i == length) {
-			sprintf(str_pos, "%s", formatFinalVal(data_pos));
+			valStr = formatFinalVal(data_pos);
+			sprintf(str_pos, "%s", valStr);
 			str_pos = str_pos + 3*sizeof(char);
+			free(valStr);
 		} else {
-			sprintf(str_pos, "%s", formatInnerVal(data_pos));
+			valStr = formatInnerVal(data_pos);
+			sprintf(str_pos, "%s", valStr);
 			str_pos = str_pos + 3*sizeof(char);
+			free(valStr);
 		}
 	}
 	return str;
@@ -277,15 +301,17 @@ void writeFile(char* toWrite, char* data, unsigned long length, int col) {
 	char* buffPos = data;
 	unsigned long writeCount = length;
 	int e =0;
+	char* printStr;
 	if(output) {
-		fprintf(output, "%s", formatHead(col));
+		printStr = formatHead(col);
+		fprintf(output, "%s", printStr);
+		free(printStr);
 		while(writeCount > buffSize) {
 			e++;
-			printf("e: %d\nbuffSize: %d\nwriteCount: %d\n", e, buffSize, writeCount);
 			writeCount -= buffSize;
-			printf("here1\n");
-			fprintf(output, "%s", formatTableChunk(buffPos, buffSize, col, rowOffset));
-			printf("here2\n");
+			printStr = formatTableChunk(buffPos, buffSize, col, rowOffset);
+			fprintf(output, "%s", printStr);
+			free(printStr);
 			buffPos += buffSize;
 			rowOffset += buffSize;
 		}
@@ -332,6 +358,7 @@ char* saveQuestion() {
 				openFileW(answer);
 				printf("overwrite\n");
 				writeFile(answer, fileBuff, fileLen, columns);
+				free(answer);
 				free(q);
 				break;
 			} else {
