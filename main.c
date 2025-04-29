@@ -134,6 +134,7 @@ char* formatHexTable(unsigned char* data, unsigned long length, int numCol) {
 	unsigned char* output = allocate(sizeOfTable(numCol, length)+1);
 	unsigned char* str_pos = output;
 	unsigned char* data_pos = data;
+	char* valStr;
 	char* str = formatHead(numCol);
 	sprintf(str_pos, "%s", str);
 	str_pos = str_pos + sizeOfHead(columns);
@@ -141,17 +142,25 @@ char* formatHexTable(unsigned char* data, unsigned long length, int numCol) {
 		data_pos = data + i*sizeof(char);
 		i++;
 		if(!(i%numCol)) {
-			sprintf(str_pos, "%s", formatEndVal(data_pos, i));
+			valStr = formatEndVal(data_pos, i);
+			sprintf(str_pos, "%s", valStr);
 			str_pos = str_pos + 13*sizeof(char);
+			free(valStr);
 		} else if(i==1) {
-			sprintf(str_pos, "%s", formatFirstVal(data_pos));
+			valStr = formatFirstValZero(data_pos);
+			sprintf(str_pos, "%s", valStr);
 			str_pos = str_pos + 13*sizeof(char);
+			free(valStr);
 		} else if(i == length) {
-			sprintf(str_pos, "%s", formatFinalVal(data_pos));
+			valStr = formatFinalVal(data_pos);
+			sprintf(str_pos, "%s", valStr);
 			str_pos = str_pos + 3*sizeof(char);
+			free(valStr);
 		} else {
-			sprintf(str_pos, "%s", formatInnerVal(data_pos));
+			valStr = formatInnerVal(data_pos);
+			sprintf(str_pos, "%s", valStr);
 			str_pos = str_pos + 3*sizeof(char);
+			free(valStr);
 		}
 	}
 	return output;
